@@ -39,10 +39,22 @@ async def lifespan(app: FastAPI):
     # Verify DB connection and ensure tables exist
     from app.db.base import Base
     import app.models  # noqa: F401
-    async with engine.begin() as conn:
-        await conn.execute(text("SELECT 1"))
-        await conn.run_sync(Base.metadata.create_all)
-    log.info("database_connected")
+    try:
+        async with engine.begin() as conn:
+            await conn.execute(text("SELECT 1"))
+            if not settings.DATABASE_URL.startswith("sqlite"):
+                for ext in ["uuid-ossp", "vector", "pg_trgm"]:
+                    try:
+                        await conn.execute(text(f'CREATE EXTENSION IF NOT EXISTS "{ext}"'))
+                    except Exception as ext_err:
+                        log.warning("extension_create_failed", extension=ext, error=str(ext_err))
+            await conn.run_sync(Base.metadata.create_all)
+        log.info("database_connected")
+    except Exception as e:
+        log.error("database_init_failed", error=str(e))
+        # In cloud environments, do not crash worker immediately if DB is temporarily warming up
+        if settings.ENVIRONMENT != "production":
+            raise
 
     yield
 
