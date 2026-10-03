@@ -1,0 +1,11 @@
+{
+  "name": "hybrid_rerank",
+  "golden_dataset_path": "sample_dataset.jsonl",
+  "hybrid_enabled": true,
+  "reranker_enabled": true,
+  "top_k_vector": 20,
+  "top_k_fts": 20,
+  "top_n_rerank": 5,
+  "chunk_size": 512,
+  "chunk_overlap": 64
+}

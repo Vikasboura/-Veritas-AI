@@ -1,0 +1,97 @@
+"""
+app/main.py
+────────────
+FastAPI application factory with:
+- Lifespan: DB connection warm-up, logging init
+- CORS middleware
+- Request-ID injection middleware
+- Structured error handlers
+- Health check endpoint
+"""
+from __future__ import annotations
+
+import uuid
+from contextlib import asynccontextmanager
+
+import structlog
+from fastapi import FastAPI, Request, status
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
+from sqlalchemy import text
+
+from app.api.router import api_router
+from app.core.config import get_settings
+from app.core.logging import configure_logging, get_logger
+from app.db.session import engine
+
+settings = get_settings()
+log = get_logger(__name__)
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    configure_logging()
+    log.info("startup", environment=settings.ENVIRONMENT)
+
+    # Verify DB connection
+    async with engine.connect() as conn:
+        await conn.execute(text("SELECT 1"))
+    log.info("database_connected")
+
+    yield
+
+    await engine.dispose()
+    log.info("shutdown")
+
+
+def create_app() -> FastAPI:
+    app = FastAPI(
+        title="CiteBase Pro",
+        description="Advanced RAG platform with verifiable citations",
+        version="0.1.0",
+        docs_url="/docs" if settings.ENVIRONMENT == "development" else None,
+        redoc_url="/redoc" if settings.ENVIRONMENT == "development" else None,
+        lifespan=lifespan,
+    )
+
+    # ── CORS ──────────────────────────────────────────────────────────────────
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=settings.cors_origins_list,
+        allow_credentials=True,
+        allow_methods=["*"],
+        allow_headers=["*"],
+    )
+
+    # ── Request-ID middleware ──────────────────────────────────────────────────
+    @app.middleware("http")
+    async def request_id_middleware(request: Request, call_next):
+        request_id = request.headers.get("X-Request-ID") or str(uuid.uuid4())
+        structlog.contextvars.clear_contextvars()
+        structlog.contextvars.bind_contextvars(request_id=request_id)
+        response = await call_next(request)
+        response.headers["X-Request-ID"] = request_id
+        return response
+
+    # ── Global error handlers ──────────────────────────────────────────────────
+    @app.exception_handler(Exception)
+    async def unhandled_exception_handler(request: Request, exc: Exception) -> JSONResponse:
+        request_id = request.headers.get("X-Request-ID", "unknown")
+        log.exception("unhandled_error", request_id=request_id, exc_info=exc)
+        return JSONResponse(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            content={"error": "Internal server error", "request_id": request_id},
+        )
+
+    # ── Health check ──────────────────────────────────────────────────────────
+    @app.get("/health", tags=["infra"])
+    async def health() -> dict:
+        return {"status": "ok", "version": "0.1.0"}
+
+    # ── Routers ───────────────────────────────────────────────────────────────
+    app.include_router(api_router)
+
+    return app
+
+
+app = create_app()

@@ -1,0 +1,6 @@
+{
+  "question": "What are the main topics covered in this document?",
+  "expected_answer": "The document covers X, Y, and Z.",
+  "source_doc": "example.pdf",
+  "source_page": 1
+}

@@ -1,0 +1,101 @@
+name: CI
+
+on:
+  push:
+    branches: ["main", "develop"]
+  pull_request:
+    branches: ["main"]
+
+jobs:
+  # ── Lint + Type Check ──────────────────────────────────────────────────────
+  lint:
+    name: Lint & Type Check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: "pip"
+
+      - name: Install lint deps
+        working-directory: backend
+        run: pip install ruff mypy types-passlib
+
+      - name: Ruff lint
+        working-directory: backend
+        run: ruff check app tests
+
+      - name: Ruff format check
+        working-directory: backend
+        run: ruff format --check app tests
+
+  # ── Unit Tests ─────────────────────────────────────────────────────────────
+  test:
+    name: Unit Tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: "pip"
+
+      - name: Install dependencies
+        working-directory: backend
+        run: pip install -r requirements.txt aiosqlite
+
+      - name: Run unit tests
+        working-directory: backend
+        env:
+          SECRET_KEY: test-secret-key-for-ci-environment-only-32x
+          DATABASE_URL: "sqlite+aiosqlite:///:memory:"
+          DATABASE_SYNC_URL: "sqlite:///test.db"
+          REDIS_URL: "redis://localhost:6379/0"
+          LLM_BASE_URL: "http://localhost:11434/v1"
+          LLM_API_KEY: "sk-test"
+          PULSEWATCH_ENABLED: "false"
+        run: pytest tests/unit/ -v --tb=short --cov=app --cov-report=xml
+
+      - name: Upload coverage
+        uses: codecov/codecov-action@v4
+        with:
+          file: backend/coverage.xml
+        continue-on-error: true
+
+  # ── Docker Build ───────────────────────────────────────────────────────────
+  docker:
+    name: Docker Build Check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build backend image
+        run: docker build ./backend -t citebase-backend:ci
+
+  # ── Security Scan ──────────────────────────────────────────────────────────
+  security:
+    name: Security Scan
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install security tools
+        run: pip install bandit pip-audit
+
+      - name: Bandit SAST scan
+        working-directory: backend
+        run: bandit -r app -ll -q || true  # warn only; make blocking in Stage 8
+
+      - name: pip-audit dependency scan
+        working-directory: backend
+        run: pip-audit -r requirements.txt --progress-spinner off || true
