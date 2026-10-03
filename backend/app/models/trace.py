@@ -10,10 +10,11 @@ import uuid
 from datetime import datetime
 
 from sqlalchemy import Boolean, DateTime, ForeignKey, Integer, Text, func
-from sqlalchemy.dialects.postgresql import JSONB, UUID
+from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.db.base import Base
+from app.db.types import JSONType
 
 
 class Trace(Base):
@@ -37,13 +38,13 @@ class Trace(Base):
     query_rewritten: Mapped[str | None] = mapped_column(Text, nullable=True)
 
     # [{step: str, candidates: [{chunk_id, score}], latency_ms: int}]
-    retrieval_steps: Mapped[list | None] = mapped_column(JSONB, nullable=True)
-    rerank_order: Mapped[list | None] = mapped_column(JSONB, nullable=True)
+    retrieval_steps: Mapped[list | None] = mapped_column(JSONType, nullable=True)
+    rerank_order: Mapped[list | None] = mapped_column(JSONType, nullable=True)
 
     # [{model, prompt_tokens, completion_tokens, latency_ms, cost_usd}]
-    llm_calls: Mapped[list | None] = mapped_column(JSONB, nullable=True)
+    llm_calls: Mapped[list | None] = mapped_column(JSONType, nullable=True)
 
-    grounding_result: Mapped[dict | None] = mapped_column(JSONB, nullable=True)
+    grounding_result: Mapped[dict | None] = mapped_column(JSONType, nullable=True)
     cache_hit: Mapped[bool | None] = mapped_column(Boolean, nullable=True)
     refused: Mapped[bool | None] = mapped_column(Boolean, nullable=True)
     total_latency_ms: Mapped[int | None] = mapped_column(Integer, nullable=True)

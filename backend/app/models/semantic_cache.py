@@ -11,11 +11,11 @@ import uuid
 from datetime import datetime
 
 from sqlalchemy import DateTime, Text, func
-from sqlalchemy.dialects.postgresql import JSONB, UUID
+from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column
-from pgvector.sqlalchemy import Vector
 
 from app.db.base import Base
+from app.db.types import JSONType, VectorType
 
 
 class SemanticCache(Base):
@@ -28,8 +28,8 @@ class SemanticCache(Base):
         UUID(as_uuid=True), nullable=False, index=True
     )
     question_hash: Mapped[str] = mapped_column(Text, nullable=False, index=True)
-    question_emb: Mapped[list[float] | None] = mapped_column(Vector(384), nullable=True)
-    answer_json: Mapped[dict] = mapped_column(JSONB, nullable=False)
+    question_emb: Mapped[list[float] | None] = mapped_column(VectorType(384), nullable=True)
+    answer_json: Mapped[dict] = mapped_column(JSONType, nullable=False)
     expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, index=True)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), nullable=False

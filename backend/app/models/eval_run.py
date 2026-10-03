@@ -9,10 +9,11 @@ import uuid
 from datetime import datetime
 
 from sqlalchemy import CheckConstraint, DateTime, ForeignKey, Text, func
-from sqlalchemy.dialects.postgresql import JSONB, UUID
+from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.db.base import Base
+from app.db.types import JSONType
 
 
 class EvalRun(Base):
@@ -30,9 +31,9 @@ class EvalRun(Base):
     workspace_id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True), nullable=False, index=True
     )
-    config_json: Mapped[dict] = mapped_column(JSONB, nullable=False)
+    config_json: Mapped[dict] = mapped_column(JSONType, nullable=False)
     status: Mapped[str] = mapped_column(Text, nullable=False, default="queued")
-    results_json: Mapped[dict | None] = mapped_column(JSONB, nullable=True)
+    results_json: Mapped[dict | None] = mapped_column(JSONType, nullable=True)
     created_by: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True), ForeignKey("users.id"), nullable=False
     )

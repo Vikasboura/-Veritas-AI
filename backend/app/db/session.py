@@ -15,16 +15,23 @@ from sqlalchemy.ext.asyncio import (
     async_sessionmaker,
     create_async_engine,
 )
+from sqlalchemy.pool import StaticPool
 
 from app.core.config import get_settings
 
 settings = get_settings()
 
+_is_sqlite = settings.DATABASE_URL.startswith("sqlite")
+
 engine = create_async_engine(
     settings.DATABASE_URL,
-    pool_pre_ping=True,
-    pool_size=10,
-    max_overflow=20,
+    # SQLite (used in tests) doesn't support pool_size / max_overflow.
+    # StaticPool keeps a single connection which is required for in-memory SQLite.
+    **(
+        {"connect_args": {"check_same_thread": False}, "poolclass": StaticPool}
+        if _is_sqlite
+        else {"pool_pre_ping": True, "pool_size": 10, "max_overflow": 20}
+    ),
     echo=settings.ENVIRONMENT == "development",
 )
 

@@ -44,7 +44,7 @@ async def get_workspace(
     )
 
 
-@router.delete("/{workspace_id}", status_code=status.HTTP_204_NO_CONTENT)
+@router.delete("/{workspace_id}", status_code=status.HTTP_204_NO_CONTENT, response_model=None)
 async def delete_workspace(
     workspace_id: uuid.UUID,
     db: DbSession,
@@ -77,7 +77,7 @@ async def add_member(
     return MemberResponse(user_id=m.user_id, email=u.email, role=m.role, joined_at=m.joined_at)
 
 
-@router.delete("/{workspace_id}/members/{target_user_id}", status_code=status.HTTP_204_NO_CONTENT)
+@router.delete("/{workspace_id}/members/{target_user_id}", status_code=status.HTTP_204_NO_CONTENT, response_model=None)
 async def remove_member(
     workspace_id: uuid.UUID,
     target_user_id: uuid.UUID,

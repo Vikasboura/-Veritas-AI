@@ -9,10 +9,11 @@ import uuid
 from datetime import datetime
 
 from sqlalchemy import Boolean, CheckConstraint, DateTime, ForeignKey, Text, func
-from sqlalchemy.dialects.postgresql import JSONB, UUID
+from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db.base import Base
+from app.db.types import JSONType
 
 
 class Message(Base):
@@ -30,7 +31,7 @@ class Message(Base):
     role: Mapped[str] = mapped_column(Text, nullable=False)
     content: Mapped[str] = mapped_column(Text, nullable=False)
     # [{chunk_id, doc_id, doc_filename, page_number, chunk_text}]
-    citations_json: Mapped[list | None] = mapped_column(JSONB, nullable=True)
+    citations_json: Mapped[list | None] = mapped_column(JSONType, nullable=True)
     refused: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
     refusal_reason: Mapped[str | None] = mapped_column(Text, nullable=True)
     created_at: Mapped[datetime] = mapped_column(

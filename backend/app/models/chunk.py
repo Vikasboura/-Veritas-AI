@@ -12,11 +12,11 @@ import uuid
 from datetime import datetime
 
 from sqlalchemy import DateTime, ForeignKey, Integer, Text, func
-from sqlalchemy.dialects.postgresql import JSONB, UUID
+from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
-from pgvector.sqlalchemy import Vector
 
 from app.db.base import Base
+from app.db.types import JSONType, VectorType
 
 
 class Chunk(Base):
@@ -40,14 +40,14 @@ class Chunk(Base):
     token_count: Mapped[int | None] = mapped_column(Integer, nullable=True)
 
     # pgvector column — dimension set via server migration, must match EMBEDDING_DIM
-    embedding: Mapped[list[float] | None] = mapped_column(Vector(384), nullable=True)
+    embedding: Mapped[list[float] | None] = mapped_column(VectorType(384), nullable=True)
 
     # tsvector — maintained by Postgres trigger, never set from Python
     # We declare it as a passthrough Text so SQLAlchemy can read it
     # (actual type is TSVECTOR in Postgres, we use Text here since we never write it)
     fts_vector: Mapped[str | None] = mapped_column(Text, nullable=True)
 
-    metadata_json: Mapped[dict | None] = mapped_column(JSONB, nullable=True)
+    metadata_json: Mapped[dict | None] = mapped_column(JSONType, nullable=True)
 
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), nullable=False
