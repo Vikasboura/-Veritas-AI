@@ -1,6 +1,7 @@
 import type { User, Workspace, DocumentItem, ChatSession, Message, Citation } from './types';
 
-const API_BASE = '/api/v1';
+const API_SERVER = import.meta.env.VITE_API_URL || 'https://veritas-ai-api-qsko.onrender.com';
+const API_BASE = `${API_SERVER.replace(/\/+$/, '')}/api/v1`;
 
 function getToken(): string | null {
   return localStorage.getItem('citebase_token');
