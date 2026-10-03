@@ -77,3 +77,7 @@ async def get_workspace_owner(
 
 
 WorkspaceOwnerDep = Annotated[WorkspaceMember, Depends(get_workspace_owner)]
+
+# Aliases matching plan conventions
+require_workspace_member = get_workspace_member
+require_workspace_owner = get_workspace_owner
