@@ -12,6 +12,9 @@ because RQ workers are sync processes. The service is pure Python; no FastAPI de
 """
 from __future__ import annotations
 
+import os
+os.environ.setdefault("USE_TF", "0")
+os.environ.setdefault("TRANSFORMERS_NO_TF", "1")
 import hashlib
 import re
 import unicodedata

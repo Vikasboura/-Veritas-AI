@@ -14,6 +14,9 @@ Includes pure RRF implementation and SQLite-compatible fallback for unit/integra
 """
 from __future__ import annotations
 
+import os
+os.environ.setdefault("USE_TF", "0")
+os.environ.setdefault("TRANSFORMERS_NO_TF", "1")
 import math
 import uuid
 from dataclasses import dataclass
@@ -324,8 +327,10 @@ class RetrievalService:
         vec_rank_map = {cid: idx + 1 for idx, cid in enumerate(vec_ids)}
         fts_rank_map = {cid: idx + 1 for idx, cid in enumerate(fts_ids)}
 
+        max_possible_rrf = 2.0 / (settings.RETRIEVAL_RRF_K + 1)
         for cid, rrf_score in rrf_results:
             chunk = chunk_map[cid]
+            normalized_score = min(1.0, rrf_score / max_possible_rrf) if max_possible_rrf > 0 else rrf_score
             candidates.append(
                 RetrievedChunk(
                     chunk_id=chunk.id,
@@ -339,7 +344,7 @@ class RetrievalService:
                     vector_rank=vec_rank_map.get(cid),
                     fts_rank=fts_rank_map.get(cid),
                     rrf_score=rrf_score,
-                    final_score=rrf_score,
+                    final_score=normalized_score,
                 )
             )
 

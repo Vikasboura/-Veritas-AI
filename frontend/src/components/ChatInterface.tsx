@@ -178,7 +178,7 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
               Ask your workspace documents
             </h3>
             <p style={{ fontSize: '14px', lineHeight: 1.6 }}>
-              CiteBase Pro answers strictly from your uploaded files with verifiable citations.
+              Veritas AI answers strictly from your uploaded files with verifiable citations.
               If the available documents do not contain evidence, it refuses to guess.
             </p>
           </div>

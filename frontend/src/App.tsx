@@ -106,7 +106,7 @@ export const App: React.FC = () => {
         color: 'var(--text-secondary)',
         fontSize: '14px',
       }}>
-        Initializing CiteBase Pro...
+        Initializing Veritas AI...
       </div>
     );
   }
@@ -129,8 +129,8 @@ export const App: React.FC = () => {
         <div className="sidebar-header">
           <div className="brand">
             <ShieldCheck size={22} color="#818cf8" />
-            <span>CiteBase</span>
-            <span className="brand-badge">PRO</span>
+            <span>Veritas</span>
+            <span className="brand-badge">AI</span>
           </div>
         </div>
 

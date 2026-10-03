@@ -66,9 +66,9 @@ export const AuthView: React.FC<AuthViewProps> = ({ onSuccess }) => {
           }}>
             <ShieldCheck size={26} />
           </div>
-          <h2 style={{ fontSize: '24px', fontWeight: 800 }}>CiteBase Pro</h2>
+          <h2 style={{ fontSize: '26px', fontWeight: 800, background: 'linear-gradient(135deg, #c7d2fe 0%, #818cf8 50%, #38bdf8 100%)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>Veritas AI</h2>
           <p style={{ color: 'var(--text-secondary)', fontSize: '14px', marginTop: '4px' }}>
-            Enterprise Grounded RAG with Verifiable Citations
+            Truth in Intelligence — Grounded Knowledge & Verifiable Citations
           </p>
         </div>
 

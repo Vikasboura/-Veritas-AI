@@ -22,17 +22,17 @@ class Settings(BaseSettings):
     )
 
     # ── API / Auth ──────────────────────────────────────────────────────────
-    SECRET_KEY: str
+    SECRET_KEY: str = "citebase-pro-secret-key-32-chars-long-production-grade"
     ALGORITHM: str = "HS256"
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 30
     REFRESH_TOKEN_EXPIRE_DAYS: int = 7
     ENVIRONMENT: str = "development"
     LOG_LEVEL: str = "INFO"
-    CORS_ORIGINS: str = "http://localhost:5173,http://localhost:3000"
+    CORS_ORIGINS: str = "http://localhost:5173,http://localhost:3000,http://127.0.0.1:5173,http://127.0.0.1:3000"
 
     # ── Database ─────────────────────────────────────────────────────────────
-    DATABASE_URL: str  # asyncpg DSN
-    DATABASE_SYNC_URL: str  # psycopg2 DSN (Alembic only)
+    DATABASE_URL: str = "sqlite+aiosqlite:///citebase.db"
+    DATABASE_SYNC_URL: str = "sqlite:///citebase.db"
 
     # ── Redis ────────────────────────────────────────────────────────────────
     REDIS_URL: str = "redis://redis:6379/0"

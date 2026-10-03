@@ -172,18 +172,34 @@ async def delete_document(
 def enqueue_ingestion(document_id: uuid.UUID, file_data: bytes, file_type: str) -> str:
     """
     Push the ingestion job onto the RQ 'ingestion' queue.
+    If Redis is unavailable, run in a background daemon thread.
     Returns the job ID.
     """
-    import redis
-    from rq import Queue
-    from app.workers.ingestion_worker import run_ingestion
+    try:
+        import redis
+        from rq import Queue
+        from app.workers.ingestion_worker import run_ingestion
 
-    conn = redis.from_url(settings.REDIS_URL)
-    q = Queue("ingestion", connection=conn)
-    job = q.enqueue(
-        run_ingestion,
-        args=(str(document_id), file_data, file_type),
-        job_timeout=600,  # 10 minutes max per doc
-    )
-    log.info("job_enqueued", document_id=str(document_id), job_id=job.id)
-    return job.id
+        conn = redis.from_url(settings.REDIS_URL, socket_connect_timeout=1)
+        conn.ping()
+        q = Queue("ingestion", connection=conn)
+        job = q.enqueue(
+            run_ingestion,
+            args=(str(document_id), file_data, file_type),
+            job_timeout=600,  # 10 minutes max per doc
+        )
+        log.info("job_enqueued", document_id=str(document_id), job_id=job.id)
+        return job.id
+    except Exception as exc:
+        log.warning("redis_unavailable_fallback_to_thread", document_id=str(document_id), error=str(exc))
+        import threading
+        from app.workers.ingestion_worker import run_ingestion
+
+        t = threading.Thread(
+            target=run_ingestion,
+            args=(str(document_id), file_data, file_type),
+            daemon=True,
+            name=f"ingestion-{document_id}",
+        )
+        t.start()
+        return f"thread-{document_id}"

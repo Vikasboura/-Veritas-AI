@@ -36,9 +36,12 @@ async def lifespan(app: FastAPI):
     configure_logging()
     log.info("startup", environment=settings.ENVIRONMENT)
 
-    # Verify DB connection
-    async with engine.connect() as conn:
+    # Verify DB connection and ensure tables exist
+    from app.db.base import Base
+    import app.models  # noqa: F401
+    async with engine.begin() as conn:
         await conn.execute(text("SELECT 1"))
+        await conn.run_sync(Base.metadata.create_all)
     log.info("database_connected")
 
     yield
@@ -49,8 +52,8 @@ async def lifespan(app: FastAPI):
 
 def create_app() -> FastAPI:
     app = FastAPI(
-        title="CiteBase Pro",
-        description="Advanced RAG platform with verifiable citations",
+        title="Veritas AI",
+        description="Grounded Intelligence platform with verifiable citations",
         version="0.1.0",
         docs_url="/docs" if settings.ENVIRONMENT == "development" else None,
         redoc_url="/redoc" if settings.ENVIRONMENT == "development" else None,

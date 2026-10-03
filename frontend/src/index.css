@@ -106,22 +106,26 @@ input:focus, textarea:focus, select:focus {
   display: flex;
   align-items: center;
   gap: 10px;
-  font-size: 18px;
+  font-size: 20px;
   font-weight: 800;
-  background: linear-gradient(135deg, #a5b4fc 0%, #38bdf8 100%);
+  letter-spacing: -0.02em;
+  background: linear-gradient(135deg, #ffffff 0%, #c7d2fe 40%, #818cf8 75%, #38bdf8 100%);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
+  text-shadow: 0 0 24px rgba(129, 140, 248, 0.25);
 }
 
 .brand-badge {
   font-size: 10px;
+  font-weight: 700;
   text-transform: uppercase;
-  letter-spacing: 0.05em;
-  background: rgba(99, 102, 241, 0.2);
-  color: #818cf8;
-  padding: 2px 6px;
-  border-radius: 4px;
-  border: 1px solid rgba(99, 102, 241, 0.4);
+  letter-spacing: 0.1em;
+  background: linear-gradient(135deg, rgba(99, 102, 241, 0.25), rgba(56, 189, 248, 0.25));
+  color: #a5b4fc;
+  padding: 2px 7px;
+  border-radius: 6px;
+  border: 1px solid rgba(129, 140, 248, 0.4);
+  box-shadow: 0 0 12px rgba(99, 102, 241, 0.2);
 }
 
 .workspace-selector {
