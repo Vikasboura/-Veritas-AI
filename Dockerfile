@@ -32,7 +32,10 @@ ENV PYTHONUNBUFFERED=1 \
     PYTHONPATH=/app/backend \
     PORT=8000 \
     USE_TF=0 \
-    TRANSFORMERS_NO_TF=1
+    TRANSFORMERS_NO_TF=1 \
+    HF_HOME=/root/.cache/huggingface
+
+RUN python -c "from sentence_transformers import SentenceTransformer; SentenceTransformer('sentence-transformers/all-MiniLM-L6-v2')"
 
 WORKDIR /app/backend
 

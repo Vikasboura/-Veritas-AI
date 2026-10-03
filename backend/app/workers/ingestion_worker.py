@@ -15,6 +15,28 @@ log = get_logger(__name__)
 settings = get_settings()
 
 
+def _mark_doc_failed(doc_uuid: uuid.UUID, error_msg: str) -> None:
+    """Fail-safe helper to update document status if worker encounters an unhandled exception."""
+    try:
+        import asyncio
+        from app.db.session import AsyncSessionLocal
+        from sqlalchemy import update
+        from app.models.document import Document
+
+        async def _update():
+            async with AsyncSessionLocal() as session:
+                await session.execute(
+                    update(Document)
+                    .where(Document.id == doc_uuid)
+                    .values(status="failed", error_message=error_msg[:512])
+                )
+                await session.commit()
+
+        asyncio.run(_update())
+    except Exception as e:
+        log.error("failed_to_mark_doc_failed", error=str(e), doc_id=str(doc_uuid))
+
+
 def get_sync_db():
     """Create a synchronous SQLAlchemy session for the worker process."""
     from sqlalchemy import create_engine
@@ -27,16 +49,29 @@ def get_sync_db():
 
 def run_ingestion(document_id: str, file_data: bytes, file_type: str) -> None:
     """
-    RQ job: ingest a single document.
+    RQ job / background task: ingest a single document.
     Args are primitive types (serializable by RQ/Redis).
     """
     configure_logging()
     doc_uuid = uuid.UUID(document_id)
     log.info("worker_ingestion_start", document_id=document_id, file_type=file_type)
 
-    db = get_sync_db()
+    try:
+        db = get_sync_db()
+    except Exception as exc:
+        log.exception("worker_get_db_failed", document_id=document_id, error=str(exc))
+        _mark_doc_failed(doc_uuid, f"Database connection error in ingestion worker: {exc}")
+        return
+
     try:
         from app.services.ingestion_service import ingest_document
         ingest_document(db=db, document_id=doc_uuid, file_data=file_data, file_type=file_type)
+        log.info("worker_ingestion_finished_successfully", document_id=document_id)
+    except Exception as exc:
+        log.exception("worker_ingestion_error", document_id=document_id, error=str(exc))
+        _mark_doc_failed(doc_uuid, str(exc))
     finally:
-        db.close()
+        try:
+            db.close()
+        except Exception:
+            pass
