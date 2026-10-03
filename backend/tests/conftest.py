@@ -25,6 +25,8 @@ from sqlalchemy.ext.asyncio import (
 )
 
 # ── Override settings BEFORE importing app ─────────────────────────────────
+os.environ["USE_TF"] = "0"
+os.environ["TRANSFORMERS_NO_TF"] = "1"
 os.environ.setdefault("SECRET_KEY", "test-secret-key-for-testing-purposes-only-32x")
 os.environ.setdefault("DATABASE_URL", "sqlite+aiosqlite:///:memory:")
 os.environ.setdefault("DATABASE_SYNC_URL", "sqlite:///test.db")
@@ -33,6 +35,8 @@ os.environ.setdefault("LLM_BASE_URL", "http://localhost:11434/v1")
 os.environ.setdefault("LLM_API_KEY", "sk-test")
 os.environ.setdefault("PULSEWATCH_ENABLED", "false")
 os.environ.setdefault("EMBEDDING_DIM", "384")
+os.environ.setdefault("EMBEDDING_MODEL", "sentence-transformers/all-MiniLM-L6-v2")
+os.environ.setdefault("RERANKER_ENABLED", "false")
 
 from app.db.base import Base
 from app.db.session import get_db

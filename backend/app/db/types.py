@@ -38,3 +38,26 @@ class VectorType(TypeDecorator):
             from pgvector.sqlalchemy import Vector
             return dialect.type_descriptor(Vector(self.dim))
         return dialect.type_descriptor(Text())
+
+    def process_bind_param(self, value, dialect):
+        if dialect.name == "postgresql":
+            return value
+        if value is None:
+            return None
+        import json
+        if isinstance(value, (list, tuple)):
+            return json.dumps(list(value))
+        return str(value)
+
+    def process_result_value(self, value, dialect):
+        if dialect.name == "postgresql":
+            return value
+        if value is None:
+            return None
+        import json
+        if isinstance(value, str):
+            try:
+                return json.loads(value)
+            except Exception:
+                return None
+        return value
