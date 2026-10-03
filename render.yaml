@@ -1,0 +1,46 @@
+services:
+  # ── Veritas AI Full-Stack Web Service ───────────────────────────────────────
+  - type: web
+    name: veritas-ai
+    runtime: docker
+    dockerfilePath: Dockerfile
+    plan: free
+    region: oregon
+    healthCheckPath: /health
+    autoDeploy: true
+    envVars:
+      - key: PORT
+        value: 8000
+      - key: ENVIRONMENT
+        value: production
+      - key: LOG_LEVEL
+        value: INFO
+      - key: SECRET_KEY
+        generateValue: true
+      - key: EMBEDDING_MODEL
+        value: sentence-transformers/all-MiniLM-L6-v2
+      - key: EMBEDDING_DIM
+        value: 384
+      - key: RERANKER_ENABLED
+        value: false
+      - key: USE_TF
+        value: "0"
+      - key: TRANSFORMERS_NO_TF
+        value: "1"
+      - key: DATABASE_URL
+        fromDatabase:
+          name: veritas-ai-db
+          property: connectionString
+      - key: DATABASE_SYNC_URL
+        fromDatabase:
+          name: veritas-ai-db
+          property: connectionString
+
+databases:
+  # ── Managed PostgreSQL ──────────────────────────────────────────────────────
+  - name: veritas-ai-db
+    databaseName: veritas
+    user: veritas
+    plan: free
+    region: oregon
+    postgresMajorVersion: 16

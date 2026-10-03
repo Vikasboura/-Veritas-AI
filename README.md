@@ -2,6 +2,8 @@
 
 > **Truth in Intelligence — Enterprise Retrieval-Augmented Generation (RAG) platform that provides strictly grounded answers derived exclusively from a workspace's own documents, with verifiable citations, multi-tenant isolation, streaming SSE, and measurable evaluation.**
 
+[![Deploy to Render](https://render.com/images/deploy-to-render-button.svg)](https://render.com/deploy?repo=https://github.com/Vikasboura/-Veritas-AI)
+
 ---
 
 ## 🌟 Key Features
