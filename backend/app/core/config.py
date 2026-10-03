@@ -105,6 +105,28 @@ class Settings(BaseSettings):
             raise ValueError("SECRET_KEY must be at least 32 characters")
         return v
 
+    @field_validator("DATABASE_URL", mode="before")
+    @classmethod
+    def assemble_db_url(cls, v: str | None) -> str:
+        if not v:
+            return "sqlite+aiosqlite:///citebase.db"
+        if v.startswith("postgres://"):
+            return v.replace("postgres://", "postgresql+asyncpg://", 1)
+        if v.startswith("postgresql://") and "+asyncpg" not in v:
+            return v.replace("postgresql://", "postgresql+asyncpg://", 1)
+        return v
+
+    @field_validator("DATABASE_SYNC_URL", mode="before")
+    @classmethod
+    def assemble_sync_db_url(cls, v: str | None) -> str:
+        if not v:
+            return "sqlite:///citebase.db"
+        if v.startswith("postgres://"):
+            return v.replace("postgres://", "postgresql+psycopg2://", 1)
+        if v.startswith("postgresql://") and "+psycopg2" not in v:
+            return v.replace("postgresql://", "postgresql+psycopg2://", 1)
+        return v
+
 
 @lru_cache(maxsize=1)
 def get_settings() -> Settings:

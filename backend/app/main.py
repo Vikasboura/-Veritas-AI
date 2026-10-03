@@ -97,6 +97,33 @@ def create_app() -> FastAPI:
     # ── Routers ───────────────────────────────────────────────────────────────
     app.include_router(api_router)
 
+    # ── Serve frontend SPA if built ───────────────────────────────────────────
+    from pathlib import Path
+    from fastapi.staticfiles import StaticFiles
+    from fastapi.responses import FileResponse
+    from fastapi import HTTPException
+
+    possible_dist_paths = [
+        Path(__file__).resolve().parent.parent.parent / "frontend" / "dist",
+        Path("/app/frontend/dist"),
+        Path("frontend/dist"),
+        Path("/app/dist"),
+    ]
+    dist_dir = next((p for p in possible_dist_paths if p.exists() and (p / "index.html").exists()), None)
+
+    if dist_dir:
+        if (dist_dir / "assets").exists():
+            app.mount("/assets", StaticFiles(directory=str(dist_dir / "assets")), name="assets")
+
+        @app.get("/{full_path:path}", include_in_schema=False)
+        async def serve_spa(full_path: str):
+            if full_path.startswith("api/") or full_path in ("docs", "openapi.json", "redoc", "health"):
+                raise HTTPException(status_code=404, detail="Not found")
+            target = dist_dir / full_path
+            if target.is_file():
+                return FileResponse(target)
+            return FileResponse(dist_dir / "index.html")
+
     return app
 
 
