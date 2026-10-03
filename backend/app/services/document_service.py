@@ -161,8 +161,10 @@ async def get_document_or_404(
 async def delete_document(
     db: AsyncSession, workspace_id: uuid.UUID, document_id: uuid.UUID
 ) -> None:
+    from app.services.cache_service import CacheService
     doc = await get_document_or_404(db, workspace_id, document_id)
     await db.delete(doc)
+    await CacheService.invalidate_workspace(db, workspace_id)
     await db.commit()
     log.info("document_deleted", document_id=str(document_id))
 

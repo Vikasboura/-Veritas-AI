@@ -2,7 +2,7 @@
 app/services/generation_service.py
 ───────────────────────────────────
 Answer generation, citation injection, anti-injection prompt hardening,
-and streaming SSE responses grounded in retrieved workspace documents.
+semantic caching, agentic retry, and grounding verification pass.
 """
 from __future__ import annotations
 
@@ -26,7 +26,9 @@ from app.schemas.chat import (
     SSEDone,
     SSEError,
 )
+from app.services.cache_service import CacheService
 from app.services.llm_client import LLMClient, get_llm_client
+from app.services.query_service import QueryService
 from app.services.refusal_service import RefusalService
 from app.services.retrieval_service import RetrievalService, RetrievedChunk
 
@@ -42,6 +44,19 @@ SECURITY & GROUNDING RULES:
 3. CITATIONS: Attribute facts by referencing the source in brackets, e.g. [1] or [doc: filename, p. page].
 4. ACCURACY: Never extrapolate, assume, or hallucinate beyond the provided text.
 """
+
+GROUNDING_VERIFY_PROMPT = """You are a rigorous Grounding and Hallucination Judge.
+Given the following context documents and a generated answer, verify whether all factual claims in the answer are directly supported by the context.
+
+Context:
+{context}
+
+Answer:
+{answer}
+
+Respond in strict JSON format:
+{{"is_grounded": true or false, "unsupported_claims": ["claim 1", ...]}}
+JSON:"""
 
 
 def build_context_block(candidates: Sequence[RetrievedChunk]) -> str:
@@ -89,7 +104,6 @@ class GenerationService:
             if session:
                 return session
 
-        # Create new session
         new_session = ChatSession(
             id=uuid.uuid4(),
             workspace_id=workspace_id,
@@ -99,6 +113,32 @@ class GenerationService:
         db.add(new_session)
         await db.flush()
         return new_session
+
+    @classmethod
+    async def verify_grounding(
+        cls,
+        answer: str,
+        candidates: Sequence[RetrievedChunk],
+        llm: LLMClient,
+    ) -> bool:
+        """Second-pass LLM judge to verify answer faithfulness."""
+        try:
+            context = "\n".join(c.content for c in candidates)
+            prompt = GROUNDING_VERIFY_PROMPT.format(context=context, answer=answer)
+            verdict_text, _ = await llm.create_chat_completion(
+                [{"role": "user", "content": prompt}],
+                model=settings.LLM_JUDGE_MODEL,
+                temperature=0.0,
+                max_tokens=100,
+            )
+            raw = verdict_text.strip()
+            if raw.startswith("```"):
+                raw = raw.strip("`").replace("json", "").strip()
+            parsed = json.loads(raw)
+            return bool(parsed.get("is_grounded", True))
+        except Exception as exc:
+            log.warning("grounding_verification_skipped", error=str(exc))
+            return True
 
     @classmethod
     async def generate_answer(
@@ -112,11 +152,10 @@ class GenerationService:
         doc_ids: list[uuid.UUID] | None = None,
         llm: LLMClient | None = None,
     ) -> ChatResponse:
-        """Non-streaming answer generation."""
+        """Non-streaming answer generation with cache check and agentic retry."""
         req_id = request_id or uuid.uuid4()
         client = llm or get_llm_client()
 
-        # 1. Resolve session
         session = await cls.get_or_create_session(
             db=db,
             workspace_id=workspace_id,
@@ -125,7 +164,6 @@ class GenerationService:
             title=question[:60],
         )
 
-        # 2. Record user message
         user_msg = Message(
             id=uuid.uuid4(),
             session_id=session.id,
@@ -135,7 +173,30 @@ class GenerationService:
         db.add(user_msg)
         await db.flush()
 
-        # 3. Retrieve chunks
+        # 1. Semantic Cache check
+        cached = await CacheService.get_cached_answer(db, workspace_id, question)
+        if cached:
+            asst_msg = Message(
+                id=uuid.uuid4(),
+                session_id=session.id,
+                role="assistant",
+                content=cached.get("answer", ""),
+                citations_json=cached.get("citations", []),
+                refused=False,
+            )
+            db.add(asst_msg)
+            await db.commit()
+            return ChatResponse(
+                message_id=asst_msg.id,
+                session_id=session.id,
+                answer=asst_msg.content,
+                citations=[Citation(**c) for c in cached.get("citations", [])],
+                refused=False,
+                refusal_reason=None,
+                request_id=req_id,
+            )
+
+        # 2. Retrieve chunks (Attempt 1)
         candidates = await RetrievalService.retrieve(
             db=db,
             workspace_id=workspace_id,
@@ -143,8 +204,23 @@ class GenerationService:
             doc_ids=doc_ids,
         )
 
-        # 4. Confidence / Refusal check
         refusal = RefusalService.evaluate(query=question, candidates=candidates)
+
+        # 3. Agentic Retry loop (Attempt 2 with query rewrite if weak)
+        if refusal.refused and refusal.reason == "LOW_CONFIDENCE":
+            log.info("agentic_retry_triggered", original_query=question)
+            rewritten_q = await QueryService.rewrite_query(question, llm=client)
+            if rewritten_q != question:
+                retry_candidates = await RetrievalService.retrieve(
+                    db=db,
+                    workspace_id=workspace_id,
+                    query=rewritten_q,
+                    doc_ids=doc_ids,
+                )
+                retry_refusal = RefusalService.evaluate(query=rewritten_q, candidates=retry_candidates)
+                if not retry_refusal.refused:
+                    candidates = retry_candidates
+                    refusal = retry_refusal
 
         if refusal.refused:
             asst_msg = Message(
@@ -169,7 +245,7 @@ class GenerationService:
                 request_id=req_id,
             )
 
-        # 5. Build prompt & call LLM
+        # 4. Answer Generation
         citations = [c.to_citation() for c in candidates]
         context_block = build_context_block(candidates)
         messages = build_messages(question, context_block)
@@ -187,6 +263,17 @@ class GenerationService:
         )
         db.add(asst_msg)
         await db.commit()
+
+        # 5. Populate cache
+        await CacheService.set_cached_answer(
+            db=db,
+            workspace_id=workspace_id,
+            question=question,
+            answer_json={
+                "answer": answer_text,
+                "citations": [c.model_dump(mode="json") for c in citations],
+            },
+        )
 
         return ChatResponse(
             message_id=asst_msg.id,
@@ -210,7 +297,7 @@ class GenerationService:
         doc_ids: list[uuid.UUID] | None = None,
         llm: LLMClient | None = None,
     ) -> AsyncGenerator[str, None]:
-        """SSE streaming answer generation yielding 'data: {...}\\n\\n' events."""
+        """SSE streaming answer generation."""
         req_id = request_id or uuid.uuid4()
         client = llm or get_llm_client()
 
@@ -222,7 +309,6 @@ class GenerationService:
             title=question[:60],
         )
 
-        # Record user message
         user_msg = Message(
             id=uuid.uuid4(),
             session_id=session.id,
@@ -232,7 +318,26 @@ class GenerationService:
         db.add(user_msg)
         await db.flush()
 
-        # Retrieve chunks
+        # 1. Semantic Cache check
+        cached = await CacheService.get_cached_answer(db, workspace_id, question)
+        if cached:
+            cached_citations = [Citation(**c) for c in cached.get("citations", [])]
+            yield f"data: {SSECitation(citations=cached_citations).model_dump_json()}\n\n"
+            yield f"data: {SSEDelta(text=cached.get('answer', '')).model_dump_json()}\n\n"
+            asst_msg = Message(
+                id=uuid.uuid4(),
+                session_id=session.id,
+                role="assistant",
+                content=cached.get("answer", ""),
+                citations_json=cached.get("citations", []),
+                refused=False,
+            )
+            db.add(asst_msg)
+            await db.commit()
+            yield f"data: {SSEDone(message_id=asst_msg.id, session_id=session.id, refused=False, request_id=req_id).model_dump_json()}\n\n"
+            return
+
+        # 2. Retrieval
         candidates = await RetrievalService.retrieve(
             db=db,
             workspace_id=workspace_id,
@@ -241,6 +346,21 @@ class GenerationService:
         )
 
         refusal = RefusalService.evaluate(query=question, candidates=candidates)
+
+        # 3. Agentic Retry
+        if refusal.refused and refusal.reason == "LOW_CONFIDENCE":
+            rewritten_q = await QueryService.rewrite_query(question, llm=client)
+            if rewritten_q != question:
+                retry_candidates = await RetrievalService.retrieve(
+                    db=db,
+                    workspace_id=workspace_id,
+                    query=rewritten_q,
+                    doc_ids=doc_ids,
+                )
+                retry_refusal = RefusalService.evaluate(query=rewritten_q, candidates=retry_candidates)
+                if not retry_refusal.refused:
+                    candidates = retry_candidates
+                    refusal = retry_refusal
 
         if refusal.refused:
             refusal_text = refusal.refusal_message or "Query refused."
@@ -256,16 +376,13 @@ class GenerationService:
             db.add(asst_msg)
             await db.commit()
 
-            # Yield delta, done
             yield f"data: {SSEDelta(text=refusal_text).model_dump_json()}\n\n"
             yield f"data: {SSEDone(message_id=asst_msg.id, session_id=session.id, refused=True, refusal_reason=refusal.reason, request_id=req_id).model_dump_json()}\n\n"
             return
 
-        # Citations event first
         citations = [c.to_citation() for c in candidates]
         yield f"data: {SSECitation(citations=citations).model_dump_json()}\n\n"
 
-        # Stream answer tokens
         context_block = build_context_block(candidates)
         messages = build_messages(question, context_block)
 
@@ -290,5 +407,16 @@ class GenerationService:
         )
         db.add(asst_msg)
         await db.commit()
+
+        # Cache entry
+        await CacheService.set_cached_answer(
+            db=db,
+            workspace_id=workspace_id,
+            question=question,
+            answer_json={
+                "answer": full_answer,
+                "citations": [c.model_dump(mode="json") for c in citations],
+            },
+        )
 
         yield f"data: {SSEDone(message_id=asst_msg.id, session_id=session.id, refused=False, request_id=req_id).model_dump_json()}\n\n"
