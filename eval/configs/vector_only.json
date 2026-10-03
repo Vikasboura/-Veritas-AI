@@ -1,0 +1,11 @@
+{
+  "name": "vector_only",
+  "golden_dataset_path": "sample_dataset.jsonl",
+  "hybrid_enabled": false,
+  "reranker_enabled": false,
+  "top_k_vector": 20,
+  "top_k_fts": 0,
+  "top_n_rerank": 5,
+  "chunk_size": 512,
+  "chunk_overlap": 64
+}

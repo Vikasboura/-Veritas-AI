@@ -1,6 +1,5 @@
-{
-  "question": "What are the main topics covered in this document?",
-  "expected_answer": "The document covers X, Y, and Z.",
-  "source_doc": "example.pdf",
-  "source_page": 1
-}
+{"question": "What is the policy for expense reporting?", "expected_answer": "All expense reports must be submitted within 30 days of the transaction.", "source_doc": "expense_policy.pdf", "source_page": 2}
+{"question": "How many days of paid vacation do employees receive?", "expected_answer": "Employees receive 20 days of paid vacation annually.", "source_doc": "employee_handbook.pdf", "source_page": 14}
+{"question": "What encryption standard is mandated for data at rest?", "expected_answer": "Data at rest must be encrypted using AES-256.", "source_doc": "security_standards.md", "source_page": 1}
+{"question": "When does the quarterly financial audit begin?", "expected_answer": "The quarterly financial audit begins on the first Monday following quarter end.", "source_doc": "compliance_guide.docx", "source_page": 5}
+{"question": "What is the escalation procedure for P1 security incidents?", "expected_answer": "P1 security incidents require immediate notification of the CISO and Incident Response team within 15 minutes.", "source_doc": "incident_response.pdf", "source_page": 8}
