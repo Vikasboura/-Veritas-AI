@@ -20,6 +20,9 @@ build/
 .coverage
 htmlcov/
 *.log
+*.db
+*.sqlite
+*.sqlite3
 
 # ── Node / Frontend ───────────────────────────────────────────────────────────
 node_modules/

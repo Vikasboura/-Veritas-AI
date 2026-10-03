@@ -1,0 +1,15 @@
+# Acme Corporation IT & Security Policy 2026
+
+## 1. Remote Work & Equipment
+All Acme Corporation employees working remotely are issued an Acme SecureBook Laptop. Personal laptops are strictly prohibited from accessing internal code repositories.
+
+## 2. Password & Authentication
+Employees must use passwords with a minimum length of 16 characters including at least one uppercase letter, one number, and one special character. Multi-factor authentication (MFA) via hardware security key (FIDO2) is mandatory for all production systems.
+
+## 3. Data Classification
+- Public: Information intended for external marketing and public press releases.
+- Internal: Standard internal communications, sprint plans, and internal wiki.
+- Confidential: Source code, customer PII, customer financial records, and cryptographic private keys.
+
+## 4. Refund Policy for Cloud Services
+Customers are entitled to a 100% full refund within 30 calendar days of invoice date if system uptime falls below 99.9% in any billing cycle.
